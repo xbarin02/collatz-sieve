@@ -104,11 +104,12 @@ int is_killed_at_k(uint128_t b, size_t k)
 
 	/* a 2^k + b --> a 3^c + d */
 	uint128_t d = T_k(b, k, &c);
-
+#if 1
+	/* Eric's sieve */
 	if (is_there_lower_b_leading_to_the_same_c_d(b, k)) {
 		return 1;
 	}
-
+#endif
 	assert(UINT128_C(1) <= (UINT128_MAX >> k));
 
 	/* the question is whether "a 3^c + d < a 2^k + b" for all "a > 0" */
@@ -222,6 +223,24 @@ void *open_map(const char *path, size_t map_size)
 unsigned char *g_map_sieve;
 
 #define SET_LIVE(n) ( g_map_sieve[(n)>>3] |= (1<<((n)&7)) )
+#define IS_LIVE(n)  ((g_map_sieve[(n)>>3] >> ((n)&7)) & 1)
+
+/* print number of live/dead entries */
+void print_stats(size_t k)
+{
+	size_t b, B = pow2(k);
+	size_t live = 0, dead = 0;
+
+	for (b = 0; b < B; ++b) {
+		if (IS_LIVE(b)) {
+			live++;
+		} else {
+			dead++;
+		}
+	}
+
+	printf("sieve-%lu: live %lu/%lu dead %lu/%lu\n", k, live, B, dead, B);
+}
 
 int main()
 {
@@ -242,6 +261,8 @@ int main()
 			SET_LIVE(b);
 		}
 	}
+
+	print_stats(k);
 
 	msync(g_map_sieve, map_size, MS_SYNC);
 	munmap(g_map_sieve, map_size);
