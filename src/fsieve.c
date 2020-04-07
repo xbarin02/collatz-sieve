@@ -405,6 +405,40 @@ void print_stats(size_t k)
 	printf("sieve-%lu: live %lu/%lu dead %lu/%lu\n", k, live, B, dead, B);
 }
 
+void export(size_t k)
+{
+	size_t b, B = pow2(k);
+	char path[4096];
+	FILE *fdead, *flive;
+
+	sprintf(path, "dead-%lu.txt", (unsigned long)k);
+	fdead = fopen(path, "w");
+
+	sprintf(path, "live-%lu.txt", (unsigned long)k);
+	flive = fopen(path, "w");
+
+	if (fdead == NULL) {
+		abort();
+	}
+
+	if (flive == NULL) {
+		abort();
+	}
+
+	for (b = 0; b < B; ++b) {
+		if (IS_LIVE(k, b)) {
+			/* live */
+			fprintf(flive, "%lu\n", (unsigned long)b);
+		} else {
+			/* dead */
+			fprintf(fdead, "%lu\n", (unsigned long)b);
+		}
+	}
+
+	fclose(fdead);
+	fclose(flive);
+}
+
 int main()
 {
 	size_t k;
@@ -423,6 +457,9 @@ int main()
 		}
 
 		print_stats(k);
+#if 0
+		export(k);
+#endif
 	}
 
 	for (k = 0; k < K + 1; ++k) {
