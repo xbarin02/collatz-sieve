@@ -88,8 +88,10 @@ int is_there_lower_b_leading_to_the_same_c_d(uint128_t b, size_t k)
 		uint128_t d_ = T_k(b, k, &c_);
 
 		if (c == c_ && d == d_) {
+			/* printf("due to %lu...\n", (unsigned long)b); */
 			return 1;
 		}
+		break; /* https://chat.stackexchange.com/transcript/message/54026791#54026791 */
 	}
 
 	return 0;
@@ -107,6 +109,7 @@ int is_killed_at_k(uint128_t b, size_t k)
 #if 1
 	/* Eric's sieve */
 	if (is_there_lower_b_leading_to_the_same_c_d(b, k)) {
+		/* printf("...%lu eliminated at %lu\n", (unsigned long)b, (unsigned long)k); */
 		return 1;
 	}
 #endif
@@ -242,6 +245,40 @@ void print_stats(size_t k)
 	printf("sieve-%lu: live %lu/%lu dead %lu/%lu\n", k, live, B, dead, B);
 }
 
+void export(size_t k)
+{
+	size_t b, B = pow2(k);
+	char path[4096];
+	FILE *fdead, *flive;
+
+	sprintf(path, "dead-%lu-b-1.txt", (unsigned long)k);
+	fdead = fopen(path, "w");
+
+	sprintf(path, "live-%lu-b-1.txt", (unsigned long)k);
+	flive = fopen(path, "w");
+
+	if (fdead == NULL) {
+		abort();
+	}
+
+	if (flive == NULL) {
+		abort();
+	}
+
+	for (b = 0; b < B; ++b) {
+		if (IS_LIVE(b)) {
+			/* live */
+			fprintf(flive, "%lu\n", (unsigned long)b);
+		} else {
+			/* dead */
+			fprintf(fdead, "%lu\n", (unsigned long)b);
+		}
+	}
+
+	fclose(fdead);
+	fclose(flive);
+}
+
 int main()
 {
 	char path[4096];
@@ -263,6 +300,9 @@ int main()
 	}
 
 	print_stats(k);
+#if 0
+	export(k);
+#endif
 
 	msync(g_map_sieve, map_size, MS_SYNC);
 	munmap(g_map_sieve, map_size);
