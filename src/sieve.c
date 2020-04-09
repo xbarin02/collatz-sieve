@@ -91,7 +91,7 @@ int is_there_lower_b_leading_to_the_same_c_d(uint128_t b, size_t k)
 			/* printf("due to %lu...\n", (unsigned long)b); */
 			return 1;
 		}
-		break; /* https://chat.stackexchange.com/transcript/message/54026791#54026791 */
+		/*break;*/ /* https://chat.stackexchange.com/transcript/message/54026791#54026791 */
 	}
 
 	return 0;
