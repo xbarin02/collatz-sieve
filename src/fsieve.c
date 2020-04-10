@@ -243,21 +243,31 @@ int compar(const void *p0, const void *p1)
 	return 0;
 }
 
+#define SAVE_MEMORY
+
 /* generate sieve[k], all k' < k are already available */
 int generate_sieve(size_t k)
 {
 	size_t b, B = pow2(k);
 
+#ifndef SAVE_MEMORY
 	size_t *c = malloc(sizeof(size_t) * B);
 	uint128_t *d = malloc(sizeof(uint128_t) * B);
+#endif
 
 	struct elem *e = malloc(sizeof(struct elem) * B);
 
-	if (c == NULL || d == NULL || e == NULL) {
+	if (
+#ifndef SAVE_MEMORY
+	    c == NULL || d == NULL ||
+#endif
+	    e == NULL) {
 		perror("malloc");
 
+#ifndef SAVE_MEMORY
 		free(c);
 		free(d);
+#endif
 		free(e);
 
 		return -1;
@@ -266,12 +276,25 @@ int generate_sieve(size_t k)
 	/* for each b in [0..2^k) */
 	for (b = 0; b < B; ++b) {
 		/* a 2^k + b --> a 3^c + d */
+#ifndef SAVE_MEMORY
 		d[b] = T_k((uint128_t)b, k, c+b);
+#else
+		size_t c_;
+		uint128_t d_ = T_k((uint128_t)b, k, &c_);
+#endif
 
+#ifndef SAVE_MEMORY
 		e[b] = pack(c[b], d[b], b);
+#else
+		e[b] = pack(c_, d_, b);
+#endif
 
 		/* become dead at this k? */
+#ifndef SAVE_MEMORY
 		if (is_convergent(k, b, c[b], d[b])) {
+#else
+		if (is_convergent(k, b, c_, c_)) {
+#endif
 			SET_DEAD(k, b);
 		}
 
@@ -294,7 +317,16 @@ int generate_sieve(size_t k)
 #else
 		struct elem f, *r;
 
+#ifdef SAVE_MEMORY
+		size_t c_;
+		uint128_t d_ = T_k((uint128_t)b, k, &c_);
+#endif
+
+#ifndef SAVE_MEMORY
 		f = pack(c[b], d[b], b);
+#else
+		f = pack(c_, d_, b);
+#endif
 
 		r = bsearch(&f, e, B, sizeof(struct elem), compar);
 
@@ -314,8 +346,10 @@ int generate_sieve(size_t k)
 #endif
 	}
 
+#ifndef SAVE_MEMORY
 	free(c);
 	free(d);
+#endif
 	free(e);
 
 	return 0;
