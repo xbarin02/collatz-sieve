@@ -11,6 +11,11 @@ ifeq ($(USE_LIBGMP), 1)
 	LDLIBS+=-lgmp
 endif
 
+ifeq ($(USE_OPENMP), 1)
+	CFLAGS+=-fopenmp
+	LDLIBS+=-fopenmp
+endif
+
 CFLAGS+=$(EXTRA_CFLAGS)
 LDLIBS+=$(EXTRA_LDLIBS)
 

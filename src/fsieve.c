@@ -274,6 +274,7 @@ int generate_sieve(size_t k)
 	}
 
 	/* for each b in [0..2^k) */
+	#pragma omp parallel for
 	for (b = 0; b < B; ++b) {
 		/* a 2^k + b --> a 3^c + d */
 #ifndef SAVE_MEMORY
@@ -295,19 +296,30 @@ int generate_sieve(size_t k)
 #else
 		if (is_convergent(k, b, c_, c_)) {
 #endif
+#ifndef _OPENMP
 			SET_DEAD(k, b);
+#else
+			#pragma omp atomic
+			g_map_sieve[k][(b)>>3] &= UCHAR_MAX ^ (1<<((b)&7));
+#endif
 		}
 
 		/* was already dead in k-1? */
 		if (k > 0) {
 			if (!IS_LIVE(k-1, b & (pow2(k-1)-1))) {
+#ifndef _OPENMP
 				SET_DEAD(k, b);
+#else
+				#pragma omp atomic
+				g_map_sieve[k][(b)>>3] &= UCHAR_MAX ^ (1<<((b)&7));
+#endif
 			}
 		}
 	}
 
 	qsort(e, B, sizeof(struct elem), compar);
 
+	#pragma omp parallel for
 	for (b = 0; b < B; ++b) {
 		/* join a path of lower number? */
 #if 0
@@ -340,7 +352,12 @@ int generate_sieve(size_t k)
 			if (unpack_c(s) == unpack_c(r) && unpack_d(s) == unpack_d(r)) {
 				assert(unpack_b(s) > unpack_b(r));
 
+#ifndef _OPENMP
 				SET_DEAD(k, (size_t)unpack_b(s));
+#else
+				#pragma omp atomic
+				g_map_sieve[k][((size_t)unpack_b(s))>>3] &= UCHAR_MAX ^ (1<<(((size_t)unpack_b(s))&7));
+#endif
 			}
 		}
 #endif
