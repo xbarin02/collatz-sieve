@@ -244,6 +244,7 @@ int compar(const void *p0, const void *p1)
 }
 
 #define SAVE_MEMORY
+#define EARLY_TERM
 
 /* generate sieve[k], all k' < k are already available */
 int generate_sieve(size_t k)
@@ -323,22 +324,32 @@ int generate_sieve(size_t k)
 	for (b = 0; b < B; ++b) {
 		/* join a path of lower number? */
 #if 0
+#	ifdef EARLY_TERM
+		if (!IS_LIVE(k, b))
+			continue;
+#	endif
 		if (join_lower_trajectory(b, c, d)) {
 			SET_DEAD(k, b);
 		}
 #else
 		struct elem f, *r;
 
-#ifdef SAVE_MEMORY
+#	ifdef SAVE_MEMORY
 		size_t c_;
-		uint128_t d_ = T_k((uint128_t)b, k, &c_);
-#endif
+		uint128_t d_;
+#	endif
 
-#ifndef SAVE_MEMORY
+#	ifdef EARLY_TERM
+		if (!IS_LIVE(k, b))
+			continue;
+#	endif
+
+#	ifndef SAVE_MEMORY
 		f = pack(c[b], d[b], b);
-#else
+#	else
+		d_ = T_k((uint128_t)b, k, &c_);
 		f = pack(c_, d_, b);
-#endif
+#	endif
 
 		r = bsearch(&f, e, B, sizeof(struct elem), compar);
 
@@ -346,18 +357,38 @@ int generate_sieve(size_t k)
 
 		assert(unpack_b(r) == unpack_b(&f));
 
+#	ifdef EARLY_TERM
+		if (r >= e + 1) {
+#	else
 		if (r + 1 < e + B) {
+#	endif
+#	ifdef EARLY_TERM
+			const struct elem *s = r - 1;
+#	else
 			const struct elem *s = r + 1;
-
+#	endif
 			if (unpack_c(s) == unpack_c(r) && unpack_d(s) == unpack_d(r)) {
+#	ifdef EARLY_TERM
+				assert(unpack_b(s) < unpack_b(r));
+#	else
 				assert(unpack_b(s) > unpack_b(r));
+#	endif
 
-#ifndef _OPENMP
+#	ifndef _OPENMP
+#		ifdef EARLY_TERM
+				SET_DEAD(k, b);
+#		else
 				SET_DEAD(k, (size_t)unpack_b(s));
-#else
+#		endif
+#	else
+#		ifdef EARLY_TERM
+				#pragma omp atomic
+				g_map_sieve[k][(b)>>3] &= UCHAR_MAX ^ (1<<((b)&7));
+#		else
 				#pragma omp atomic
 				g_map_sieve[k][((size_t)unpack_b(s))>>3] &= UCHAR_MAX ^ (1<<(((size_t)unpack_b(s))&7));
-#endif
+#		endif
+#	endif
 			}
 		}
 #endif
