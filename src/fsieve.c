@@ -105,6 +105,8 @@ int is_convergent(size_t k, size_t b, size_t c, uint128_t d)
 
 	rhs = (int128_t)b - (int128_t)d;
 
+	/* printf("a*%lu + %lu < a*2^%lu + %lu [%s]\n", (uint64_t)pow3(c), (uint64_t)d, (uint64_t)k, (uint64_t)b, (lhs < rhs && lhs < 0) ? "DEAD" : "LIVE"); */
+
 	return lhs < rhs && lhs < 0;
 }
 
@@ -295,7 +297,7 @@ int generate_sieve(size_t k)
 #ifndef SAVE_MEMORY
 		if (is_convergent(k, b, c[b], d[b])) {
 #else
-		if (is_convergent(k, b, c_, c_)) {
+		if (is_convergent(k, b, c_, /*c_*/d_)) {
 #endif
 #ifndef _OPENMP
 			SET_DEAD(k, b);
@@ -317,7 +319,7 @@ int generate_sieve(size_t k)
 			}
 		}
 	}
-
+#if 1 /* Eric's join a path of lower number */
 	qsort(e, B, sizeof(struct elem), compar);
 
 	#pragma omp parallel for
@@ -393,6 +395,7 @@ int generate_sieve(size_t k)
 		}
 #endif
 	}
+#endif
 
 #ifndef SAVE_MEMORY
 	free(c);
