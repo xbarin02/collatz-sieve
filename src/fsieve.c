@@ -297,7 +297,7 @@ int generate_sieve(size_t k)
 #ifndef SAVE_MEMORY
 		if (is_convergent(k, b, c[b], d[b])) {
 #else
-		if (is_convergent(k, b, c_, /*c_*/d_)) {
+		if (is_convergent(k, b, c_, d_)) {
 #endif
 #ifndef _OPENMP
 			SET_DEAD(k, b);
