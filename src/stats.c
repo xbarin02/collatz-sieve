@@ -54,7 +54,7 @@ int main()
 	uint64_t n;
 	uint64_t live = 0, dead = 0;
 
-	sprintf(path, "sieve-%lu.map", (unsigned long)SIEVE_LOGSIZE);
+	sprintf(path, "fsieve-%lu.map", (unsigned long)SIEVE_LOGSIZE);
 
 	g_map_sieve = open_map(path, map_size);
 

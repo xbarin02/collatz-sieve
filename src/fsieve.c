@@ -11,12 +11,38 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include "wideint.h"
+#include "compat.h"
 
 #ifndef SIEVE_LOGSIZE
 #	define SIEVE_LOGSIZE 16
 #endif
 
 #define K SIEVE_LOGSIZE
+
+#define LUT_SIZE64 41
+uint64_t g_lut64[LUT_SIZE64];
+unsigned long g_max_ns_ul[LUT_SIZE64];
+
+/* init lookup table */
+void init_lut(void)
+{
+	int alpha;
+
+	for (alpha = 0; alpha < LUT_SIZE64; ++alpha) {
+		g_lut64[alpha] = pow3u64((uint64_t)alpha);
+
+		if (2 * alpha < 64) {
+			g_max_ns_ul[alpha] = UINT64_MAX >> 2 * alpha;
+		} else {
+			g_max_ns_ul[alpha] = 0;
+		}
+	}
+}
+
+int min(int a, int b)
+{
+	return a < b ? a : b;
+}
 
 uint128_t pow2(size_t k)
 {
@@ -248,6 +274,42 @@ int compar(const void *p0, const void *p1)
 #define SAVE_MEMORY
 #define EARLY_TERM
 
+int is_live_in_sieve_2_34v2(int k, uint64_t n)
+{
+     int R = k;
+     uint64_t L = n;
+     uint64_t L_last = n;
+
+     while (R > 0)
+     {
+		int alpha, beta;
+
+		L += 1;
+
+		alpha = min(ctzu64(L), R);
+		R -= alpha;
+		L = (L >> alpha);
+		assert(L <= g_max_ns_ul[alpha] || L <= UINT64_MAX / g_lut64[alpha]);
+		L *= g_lut64[alpha];
+
+		L -= 1;
+
+		beta = min(ctzu64(L), R);
+		R -= beta;
+		L = L >> beta;
+
+		if (L < n)
+			return 0;
+
+		if ((beta >= 2) && ((L_last-1)/2 < n))
+			return 0;
+
+		L_last = L;
+     }
+
+     return 1;
+}
+
 /* generate sieve[k], all k' < k are already available */
 int generate_sieve(size_t k)
 {
@@ -279,6 +341,19 @@ int generate_sieve(size_t k)
 	/* for each b in [0..2^k) */
 	#pragma omp parallel for
 	for (b = 0; b < B; ++b) {
+#if 1
+		/* is_live_in_sieve_2_34v2: if ((beta >= 2) && ((L_last-1)/2 < n)) */
+		assert(B - 1 <= UINT64_MAX);
+
+		if (!is_live_in_sieve_2_34v2(k, b)) {
+#ifndef _OPENMP
+			SET_DEAD(k, b);
+#else
+			#pragma omp atomic
+			g_map_sieve[k][(b)>>3] &= UCHAR_MAX ^ (1<<((b)&7));
+#endif
+		}
+#endif
 		/* a 2^k + b --> a 3^c + d */
 #ifndef SAVE_MEMORY
 		d[b] = T_k((uint128_t)b, k, c+b);
@@ -527,6 +602,8 @@ void export(size_t k)
 int main()
 {
 	size_t k;
+
+	init_lut();
 
 	printf("sizeof(struct elem) = %lu\n", (unsigned long)sizeof(struct elem));
 
