@@ -310,6 +310,99 @@ int is_live_in_sieve_2_34v2(int k, uint64_t n)
      return 1;
 }
 
+uint64_t smallest_predecessor(uint64_t L, int salpha)
+{
+    uint64_t pred = L;
+    uint64_t pred2 = L;
+
+    if (salpha == 0)
+        return pred;
+
+    /*salpha >= 1*/
+    assert(salpha >= 1);
+
+    if (L % 3 == 2) /*2k+1 --> 3k+2*/
+    {
+        pred2 = smallest_predecessor((L - 2) / 3 * 2 + 1, salpha - 1);
+        if (pred2 < pred)
+            pred = pred2;
+    }
+
+    if (salpha >= 2)
+    {
+        if (L % 9 == 4) /*8k+3 --> 9k+4*/
+        {
+            pred2 = smallest_predecessor((L - 4) / 9 * 8 + 3, salpha - 2);
+            if (pred2 < pred)
+                pred = pred2;
+        }
+    }
+
+    if (salpha >= 4)
+    {
+        if (L % 81 == 10) /*64k+7 --> 81k+10*/
+        {
+            pred2 = smallest_predecessor((L - 10) / 81 * 64 + 7, salpha - 4);
+            if (pred2 < pred)
+                pred = pred2;
+        }
+    }
+
+    if (salpha >= 5)
+    {
+        if (L % 243 == 182) /*128k+95 --> 243k+182*/
+        {
+            pred2 = smallest_predecessor((L - 182) / 243 * 128 + 95, salpha - 5);
+            if (pred2 < pred)
+                pred = pred2;
+        }
+    }
+
+    return pred;
+}
+
+int is_live_in_sieve_2_34v3(int k, uint64_t n)
+{
+	int R = k;
+	int salpha = 0;
+	uint64_t L = n;
+	uint64_t L_last = n;
+
+	while (R > 0)
+	{
+		int alpha, beta;
+		uint64_t Collatz_predecessor;
+
+		L += 1;
+		alpha = min(ctzu64(L), R);
+		salpha += alpha;
+		R -= alpha;
+		L = (L >> alpha);
+		assert(L <= g_max_ns_ul[alpha] || L <= UINT64_MAX / g_lut64[alpha]);
+		L *= g_lut64[alpha];
+		L -= 1;
+
+		beta = min(ctzu64(L), R);
+		R -= beta;
+		L = L >> beta;
+
+		Collatz_predecessor = smallest_predecessor(L, salpha);
+		if (beta >= 2)
+		{
+			uint64_t m = smallest_predecessor((L_last - 1) / 2, salpha-alpha);
+			if (m < Collatz_predecessor)
+				Collatz_predecessor = m;
+		}
+
+		if (Collatz_predecessor < n)
+			return 0;
+
+		L_last = L;
+	}
+
+	return 1;
+}
+
 /* generate sieve[k], all k' < k are already available */
 int generate_sieve(size_t k)
 {
@@ -346,6 +439,19 @@ int generate_sieve(size_t k)
 		assert(B - 1 <= UINT64_MAX);
 
 		if (!is_live_in_sieve_2_34v2(k, b)) {
+#ifndef _OPENMP
+			SET_DEAD(k, b);
+#else
+			#pragma omp atomic
+			g_map_sieve[k][(b)>>3] &= UCHAR_MAX ^ (1<<((b)&7));
+#endif
+		}
+#endif
+#if 1
+		/* is_live_in_sieve_2_34v3 */
+		assert(B - 1 <= UINT64_MAX);
+
+		if (!is_live_in_sieve_2_34v3(k, b)) {
 #ifndef _OPENMP
 			SET_DEAD(k, b);
 #else
